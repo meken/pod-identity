@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kv-demo-deployment
+spec:
+  selector:
+    matchLabels:
+      app: kv-demo
+  template:
+    metadata:
+      labels:
+        app: kv-demo
+        aadpodidbinding: kv-pod-id
+    spec:
+      containers:
+        - name: kv-demo
+          image: <ACR>.azurecr.io/demo/key-vault-pod-identity:1.0
+          env:
+            - name: KEYVAULT_URL
+              value: https://<KV>.vault.azure.net/
+          resources:
+            requests:
+              memory: "500m"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
