@@ -1,102 +1,119 @@
-#### Using Managed System Identities on K8S pods
-This project is intended as a showcase on how to use [Managed System Identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) on 
-Azure Kubernetes Service (AKS) with a Java Spring Boot app. This repository is based on https://github.com/Azure/aad-pod-identity, 
-and most (if not all) of the information is available and maintained there. 
+# Update 2021-01-27 
 
-In order to illustrate the concepts a simple Java app is deployed on an AKS cluster, that acts as a proxy
-for an Azure Key Vault. Note that there are ways of configuring Azure Key Vault to provide [secrets as configuration](https://docs.microsoft.com/en-us/azure/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-key-vault),
-but for the purpose of this project we'll directly access it with a ```KeyVaultClient```.
+This version uses a new method for pod-managed-identities as described [here](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). This functionality is in preview at the time of this writing, and requires specific features and certain CLI functionality to be enabled (via extensions). All of that is explained in the aforementioned docs, so please follow those instructions and create an AKS cluster with the right features before attempting to deploy this codebase.
 
-The steps below assume that you've already created the necessary resources using your preferred method 
-(azure-cli, ARM templates, Terraform etc.), but all further configuration will be done with azure-cli and 
-obviusly ```kubectl``` will be used to manage the AKS cluster. So, the code below assumes that azure-cli as well as 
-```kubectl``` is installed. Also to build the Java code, ```mvn``` is needed.
+# Using Managed System Identities on K8S pods
 
-> Note that the snippets below assume that you're on the bash shell, otherwise please amend the commands to match your 
-> environment.
+This project is intended as a showcase on how to use [Managed System Identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) on Azure Kubernetes Service (AKS) with a Java Spring Boot app. 
 
-##### Basics
-Assuming that you've already successfully created an AKS cluster, Azure Container Registry 
-([attached to the cluster](https://docs.microsoft.com/en-us/azure/aks/cluster-container-registry-integration)),
-Azure Key Vault and stored the names of these resources in the following environment variables
+In order to illustrate the concepts a simple Java app is deployed on an AKS cluster, that acts as a proxy for an Azure Key Vault. Note that there are ways of configuring Azure Key Vault to provide [secrets as configuration](https://docs.microsoft.com/en-us/azure/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-key-vault), but for the purpose of this project we'll directly access it with a `KeyVaultClient`.
+
+The steps below assume that you've already created the necessary resources using your preferred method (azure-cli, ARM templates, Terraform etc.), but all further configuration will be done with azure-cli and obviusly `kubectl` will be used to manage the AKS cluster. So, the code below assumes that azure-cli as well as `kubectl` is installed. Also to build the Java code, `mvn` is needed.
+
+## Basics
+
+Assuming that you've already successfully created an AKS cluster, Azure Container Registry ([attached to the cluster](https://docs.microsoft.com/en-us/azure/aks/cluster-container-registry-integration)), Azure Key Vault and stored the names of these resources in the following environment variables
+
 ```bash
-RG=...  # name of the resource group where all the resources are deployed
+RG=...  # name of the Resource Group where all the resources are deployed
 AKS=... # name of the AKS cluster
-ACR=...  # name of the container registry, without the azurecr.io suffix
+ACR=...  # name of the Container Registry
 KV=...  # name of the Key Vault
 ```
 
-If you haven't configured access to your cluster, you can easily do that with the following cli
-command
+The following snippets help you create a pod-identity-enabled AKS cluster, a container registry and a key vault. But before you can create a cluster with the proper functionality, you'll need to enable the preview features.
+
 ```bash
+az feature register --name EnablePodIdentityPreview --namespace Microsoft.ContainerService
+az extension add --name aks-preview
+```
+
+Assuming that none of the resources exist yet, let's create a resource group and other related resources.
+
+```bash
+az group create -n $AKS -l westeurope  # or any other location where the resources are supported
+ 
+az keyvault create -g $RG -n $KV 
+az acr create -g $RG -n $ACR --sku Standard
+```
+
+Now we can create the AKS cluster and get the credentials for accessing it from the terminal.
+
+```bash
+az aks create -g $RG -n $AKS \
+    --enable-managed-identity \
+    --enable-pod-identity \
+    --attach-acr $ACR \
+    --network-plugin azure
+
 az aks get-credentials -g $RG -n $AKS
 ```
 
-##### Preparing the cluster
-As described in the aad-pod-identity repository, a few resources need to be installed on the cluster to enable 
-Managed System Identities. If you've configured your cluster to be RBAC aware, you can install the 
-necessary resources using the corresponding template.
+
+## Identities
+
+The identity we'll configure needs to be created in the resource group in which worker nodes are deployed. This is different from the resource group where AKS is created. In order to get that you can run this command and store the result in a variable. Note that you could use any other resource group as well, this example is inspired by the old method of pod-identity assignment which required the identity to be created in this specific resource group.
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+ID_RG=`az aks show -g $RG -n $AKS --query nodeResourceGroup -o tsv`
 ```
 
-##### Identities
-The identity we'll configure needs to be created in the resource group in which worker nodes are deployed. This is
-different from the resource group where AKS is created. In order to get that you can run this command and store the 
-result in a variable 
+We'll need the client id (and the identity resource id) later for configuring access, so let's store that in a variable.
 
 ```bash
-MC_RG=`az aks show -g $RG -n $AKS --query nodeResourceGroup -o tsv`
+ID_NAME=demo-aad1  # AAD identity
+CL_ID=`az identity create -g $ID_RG -n $ID_NAME --query clientId -o tsv`
+ID_RES_ID=`az identity show -g $ID_RG -n $ID_NAME --query id -o tsv`
 ```
 
-We'll need the client id later for configuring access, so let's store that in a variable.
+Next step is to introduce this identity to the cluster.
+
 ```bash
-CL_ID=`az identity create -n demo-aad1 -g $MC_RG --query clientId -o tsv`
+PID=demo-pod1  # pod identity name
+az aks pod-identity add -g $RG -n $PID \
+    --cluster-name $AKS \
+    --namespace default \
+    --identity-resource-id $ID_RES_ID
 ```
 
-If you already have some secrets in your key vault, you can skip this, otherwise put some sample
-data in there.
+If you already have some secrets in your key vault, you can skip this, otherwise put some sample data in there.
+
 ```bash
 az keyvault secret set --vault-name $KV --name mySecret --value 42
 ```
 
-Now let's give permissions to the generated identity to access secrets. Note that we're using the 
-client id for this purpose. 
+Now let's give permissions to the generated identity to access secrets. Note that we're using the client id for this purpose. 
+
 ```bash
 az keyvault set-policy -n $KV --spn $CL_ID --secret-permissions list get
 ```
 
-##### Application
+## Application
 
-The application is pretty trivial, we'll be just building a Spring Boot app and deploy that 
-in the container registry. Note that this step doesn't require docker to be installed on your local 
-machine as building happens on the container registry. Make sure that you're running this command
-from the top level directory of this repository.
+The application is pretty trivial, we'll be just building a Spring Boot app and deploy that in the container registry. Note that this step doesn't require docker to be installed on your local machine as building happens on the container registry. Make sure that you're running this command from the top level directory of this repository.
 
 ```bash
 mvn clean package
 az acr build -t demo/key-vault-pod-identity:1.0 -r $ACR .
 ```
 
-##### Bringing things together
+## Bringing things together
+
 First step is to replace the placeholders in the configuration files. From the top level directory run this
+
 ```bash
-cd k8s
-sed -i -e "s/<KV>/$KV/g" -e "s/<ACR>/$ACR/g" deployment.yaml
-SUB_ID=`az account show --query id -o tsv`
-sed -i -e "s/<SUBSCRIPTION_ID>/$SUB_ID/g" -e "s/<RESOURCE_GROUP>/$MC_RG/g" -e "s/<CLIENT_ID>/$CL_ID/g" aadpodidentity.yaml
+sed -i -e "s/<KV>/$KV/g" -e "s/<ACR>/$ACR/g" -e "s/<PID>/$PID/g" k8s/deployment.yaml
 ```
 
 Now we can deploy the required components and the application
 ```bash
-kubectl apply -f aadpodidentity.yaml 
-kubectl apply -f aadpodidentitybinding.yaml 
-kubectl apply -f deployment.yaml 
+kubectl apply -f k8s/deployment.yaml 
 ```
 
-##### Testing
+## Testing
+
 After proxying the pod, you can access the application at localhost:8080
+
 ```bash
 POD=`kubectl get pods -l app=kv-demo -o name`
 kubectl port-forward $POD 8080:8080
