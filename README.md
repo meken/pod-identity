@@ -8,7 +8,7 @@ This project is intended as a showcase on how to use [Managed System Identities]
 
 In order to illustrate the concepts a simple Java app is deployed on an AKS cluster, that acts as a proxy for an Azure Key Vault. Note that there are ways of configuring Azure Key Vault to provide [secrets as configuration](https://docs.microsoft.com/en-us/azure/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-key-vault), or even [as volumes](https://github.com/kubernetes-sigs/secrets-store-csi-driver) but for the purpose of this project we'll directly access it with a `KeyVaultClient`.
 
-The steps below assume that you've already created the necessary resources using your preferred method (azure-cli, ARM templates, Terraform etc.), but all further configuration will be done with azure-cli and obviusly `kubectl` will be used to manage the AKS cluster. So, the code below assumes that azure-cli as well as `kubectl` is installed. Also to build the Java code, `mvn` is needed.
+The steps below assume that you've installed and familiar with the `azure-cli`, `kubectl` and `mvn` tools.
 
 ## Basics
 
