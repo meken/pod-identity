@@ -10,7 +10,7 @@ spec:
     metadata:
       labels:
         app: kv-demo
-        aadpodidbinding: kv-pod-id
+        aadpodidbinding: <PID>
     spec:
       containers:
         - name: kv-demo
