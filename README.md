@@ -6,13 +6,13 @@ This version uses a new method for pod-managed-identities as described [here](ht
 
 This project is intended as a showcase on how to use [Managed System Identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) on Azure Kubernetes Service (AKS) with a Java Spring Boot app. 
 
-In order to illustrate the concepts a simple Java app is deployed on an AKS cluster, that acts as a proxy for an Azure Key Vault. Note that there are ways of configuring Azure Key Vault to provide [secrets as configuration](https://docs.microsoft.com/en-us/azure/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-key-vault), but for the purpose of this project we'll directly access it with a `KeyVaultClient`.
+In order to illustrate the concepts a simple Java app is deployed on an AKS cluster, that acts as a proxy for an Azure Key Vault. Note that there are ways of configuring Azure Key Vault to provide [secrets as configuration](https://docs.microsoft.com/en-us/azure/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-key-vault), or even [as volumes](https://github.com/kubernetes-sigs/secrets-store-csi-driver) but for the purpose of this project we'll directly access it with a `KeyVaultClient`.
 
 The steps below assume that you've already created the necessary resources using your preferred method (azure-cli, ARM templates, Terraform etc.), but all further configuration will be done with azure-cli and obviusly `kubectl` will be used to manage the AKS cluster. So, the code below assumes that azure-cli as well as `kubectl` is installed. Also to build the Java code, `mvn` is needed.
 
 ## Basics
 
-Assuming that you've already successfully created an AKS cluster, Azure Container Registry ([attached to the cluster](https://docs.microsoft.com/en-us/azure/aks/cluster-container-registry-integration)), Azure Key Vault and stored the names of these resources in the following environment variables
+Let's start with some environment variables for the resources that will be created.
 
 ```bash
 RG=...  # name of the Resource Group where all the resources are deployed
@@ -52,7 +52,7 @@ az aks get-credentials -g $RG -n $AKS
 
 ## Identities
 
-The identity we'll configure needs to be created in the resource group in which worker nodes are deployed. This is different from the resource group where AKS is created. In order to get that you can run this command and store the result in a variable. Note that you could use any other resource group as well, this example is inspired by the old method of pod-identity assignment which required the identity to be created in this specific resource group.
+The identity we'll configure we'll be put in a resource group in which worker nodes are deployed. This is different from the resource group where AKS is created. In order to get that you can run the command below and store the result in a variable. Note that you could use any other resource group as well, this example is inspired by the old method of pod-identity assignment which required the identity to be created in this specific resource group.
 
 ```bash
 ID_RG=`az aks show -g $RG -n $AKS --query nodeResourceGroup -o tsv`
@@ -76,7 +76,7 @@ az aks pod-identity add -g $RG -n $PID \
     --identity-resource-id $ID_RES_ID
 ```
 
-If you already have some secrets in your key vault, you can skip this, otherwise put some sample data in there.
+If you don't have any secrets in the vault, put some sample data in there.
 
 ```bash
 az keyvault secret set --vault-name $KV --name mySecret --value 42
