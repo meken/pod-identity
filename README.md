@@ -1,6 +1,6 @@
 # Update 2021-01-27 
 
-This version uses a new method for pod-managed-identities as described [here](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). This functionality is in preview at the time of this writing, and requires specific features and certain CLI functionality to be enabled (via extensions). All of that is explained in the aforementioned docs, so please follow those instructions and create an AKS cluster with the right features before attempting to deploy this codebase.
+This version uses a new method for pod-managed-identities as described [here](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). This functionality is in preview at the time of this writing, and requires specific features and certain CLI functionality to be enabled (via extensions). All of that is explained in the aforementioned docs, but for the sake of completenes those steps are also documented below.
 
 # Using Managed System Identities on K8S pods
 
@@ -107,7 +107,7 @@ sed -i -e "s/<KV>/$KV/g" -e "s/<ACR>/$ACR/g" -e "s/<PID>/$PID/g" k8s/deployment.
 
 Now we can deploy the required components and the application
 ```bash
-kubectl apply -f k8s/deployment.yaml 
+kubectl apply -f k8s/deployment.yaml
 ```
 
 ## Testing
@@ -120,7 +120,7 @@ kubectl port-forward $POD 8080:8080
 ```
 
 If you're using the sample secret, you should see something like that
-```console
+```bash
 $ curl localhost:8080/secret/mySecret
 42
 ```
