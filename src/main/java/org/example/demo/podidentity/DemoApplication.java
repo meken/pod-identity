@@ -1,4 +1,4 @@
-package com.microsoft.demo.podidentity;
+package org.example.demo.podidentity;
 
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.credentials.MSICredentials;

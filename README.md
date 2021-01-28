@@ -33,7 +33,7 @@ Assuming that none of the resources exist yet, let's create a resource group and
 ```bash
 az group create -n $RG -l westeurope  # or any other location where the resources are supported
  
-az keyvault create -g $RG -n $KV 
+az keyvault create -g $RG -n $KV
 az acr create -g $RG -n $ACR --sku Standard
 ```
 
@@ -76,17 +76,18 @@ az aks pod-identity add -g $RG -n $PID \
     --identity-resource-id $ID_RES_ID
 ```
 
+Now let's give permissions to the generated identity to access secrets. Note that we're using the client id for this purpose. 
+
+```bash
+az keyvault set-policy -n $KV --spn $CL_ID --secret-permissions list get
+```
+
 If you don't have any secrets in the vault, put some sample data in there.
 
 ```bash
 az keyvault secret set --vault-name $KV --name mySecret --value 42
 ```
 
-Now let's give permissions to the generated identity to access secrets. Note that we're using the client id for this purpose. 
-
-```bash
-az keyvault set-policy -n $KV --spn $CL_ID --secret-permissions list get
-```
 
 ## Application
 
@@ -102,12 +103,13 @@ az acr build -t demo/key-vault-pod-identity:1.0 -r $ACR .
 First step is to replace the placeholders in the configuration files. From the top level directory run this
 
 ```bash
-sed -i -e "s/<KV>/$KV/g" -e "s/<ACR>/$ACR/g" -e "s/<PID>/$PID/g" k8s/deployment.yaml
+sed -e "s/<KV>/$KV/g" -e "s/<ACR>/$ACR/g" -e "s/<PID>/$PID/g" k8s/deployment.yaml > target/deployment.yaml
 ```
 
 Now we can deploy the required components and the application
+
 ```bash
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -f target/deployment.yaml
 ```
 
 ## Testing

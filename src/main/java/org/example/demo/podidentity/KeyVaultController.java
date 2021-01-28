@@ -1,15 +1,13 @@
-package com.microsoft.demo.podidentity;
+package org.example.demo.podidentity;
 
 import java.time.Instant;
-import javax.annotation.Resource;
 
 import com.microsoft.azure.keyvault.KeyVaultClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,7 +25,6 @@ public class KeyVaultController {
 
     @GetMapping("/secret/{name}")
     public String secret(@PathVariable String name) {
-        // @TODO make key vault name a property
         return client.getSecret(keyVaultUrl, name).value();
     }
 }
