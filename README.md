@@ -31,7 +31,7 @@ az extension add --name aks-preview
 Assuming that none of the resources exist yet, let's create a resource group and other related resources.
 
 ```bash
-az group create -n $AKS -l westeurope  # or any other location where the resources are supported
+az group create -n $RG -l westeurope  # or any other location where the resources are supported
  
 az keyvault create -g $RG -n $KV 
 az acr create -g $RG -n $ACR --sku Standard
@@ -52,7 +52,7 @@ az aks get-credentials -g $RG -n $AKS
 
 ## Identities
 
-The identity we'll configure we'll be put in a resource group in which worker nodes are deployed. This is different from the resource group where AKS is created. In order to get that you can run the command below and store the result in a variable. Note that you could use any other resource group as well, this example is inspired by the old method of pod-identity assignment which required the identity to be created in this specific resource group.
+The identity we'll configure will be put in a resource group in which worker nodes are deployed. This is different from the resource group where AKS is created. In order to get that you can run the command below and store the result in a variable. Note that you could use any other resource group as well, this example is inspired by the old method of pod-identity assignment which required the identity to be created in this specific resource group.
 
 ```bash
 ID_RG=`az aks show -g $RG -n $AKS --query nodeResourceGroup -o tsv`
